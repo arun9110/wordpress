@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  wordpress:
+    build:
+      context: ./docker/wordpress
+      dockerfile: Dockerfile
+    image: local/wordpress-dev:latest
+    container_name: wp_dev_wordpress
+    restart: unless-stopped
+    ports:
+      - "8080:80"                     # browse site at http://localhost:8080
+    volumes:
+      - ./wp-content:/var/www/html/wp-content     # develop themes/plugins/uploads
+      - ./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini # php upload settings for dev (optional)
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+      WORDPRESS_DEBUG: 1              # useful for dev
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - wp-network
+
+  db:
+    image: mariadb:10.6     # stable dev-friendly version
+    container_name: wp_dev_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wp-network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: wp_dev_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "8081:80"    # phpMyAdmin at http://localhost:8081
+    depends_on:
+      - db
+    networks:
+      - wp-network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: wp_dev_mailhog
+    restart: unless-stopped
+    ports:
+      - "8025:8025"   # MailHog UI at http://localhost:8025
+    networks:
+      - wp-network
+
+  wpcli:
+    image: wordpress:latest
+    container_name: wpcli
+    entrypoint: ["tail", "-f", "/dev/null"]  # keep container alive as a helper
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+    depends_on:
+      - db
+      - wordpress
+    networks:
+      - wp-network
+
+volumes:
+  db_data:
+
+networks:
+  wp-network:
+    driver: bridge

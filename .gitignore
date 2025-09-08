@@ -1,0 +1,15 @@
+.env
+# Ignore uploads
+wp-content/uploads/
+
+# Ignore common cache/temp dirs
+wp-content/cache/
+wp-content/upgrade/
+
+# Ignore all plugins except your custom ones
+wp-content/plugins/*
+!wp-content/plugins/my-custom-plugin/
+
+# Ignore all themes except your custom one
+wp-content/themes/*
+!wp-content/themes/my-custom-theme/
